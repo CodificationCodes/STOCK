@@ -1,0 +1,54 @@
+# Production deployment.
+#
+#   cp .env.example .env      # then edit it -- STOCKGAME_SECRET_KEY is required
+#   docker compose up -d
+#
+# The server binds to 127.0.0.1 only; a reverse proxy (see docker/nginx.conf)
+# terminates TLS and forwards to it. Nothing here is exposed publicly.
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: stockgame-server:latest
+    container_name: stockgame-server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      STOCKGAME_HOST: 0.0.0.0
+      STOCKGAME_PORT: 8765
+      STOCKGAME_DATABASE_URL: sqlite+aiosqlite:////data/stockgame.sqlite3
+      # The proxy sets X-Forwarded-For; trust it so rate limiting sees real IPs.
+      STOCKGAME_TRUST_PROXY_HEADERS: "true"
+      STOCKGAME_LOG_JSON: "true"
+    ports:
+      # Loopback only. Change to "8765:8765" ONLY if you have no proxy and
+      # understand that the API would then be reachable without TLS.
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - stockgame-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request, sys
+          sys.exit(0 if urllib.request.urlopen(
+              "http://127.0.0.1:8765/api/health", timeout=4).status == 200 else 1)
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  stockgame-data:
+    driver: local

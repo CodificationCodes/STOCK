@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Server (fast clock)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "stockgame.server.cli",
+      "args": ["--debug", "--tick-seconds", "1", "--day-seconds", "300"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Client",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "stockgame.client.cli",
+      "args": ["--server", "127.0.0.1:8765"],
+      // The TUI needs a real terminal, not the debug console.
+      "console": "externalTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Admin: status",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "stockgame.server.admin",
+      "args": ["status"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-v"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

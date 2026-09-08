@@ -1,0 +1,24 @@
+# Development overlay:
+#
+#   docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml up
+#
+# Mounts the source read-only, reloads on change, exposes the port on all
+# interfaces and speeds the simulated clock up so a "day" passes in 3 minutes.
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["stockgame-server", "--reload", "--debug"]
+    environment:
+      STOCKGAME_DEBUG: "true"
+      STOCKGAME_LOG_LEVEL: DEBUG
+      STOCKGAME_LOG_JSON: "false"
+      STOCKGAME_SECRET_KEY: development-only-not-a-real-secret
+      STOCKGAME_TICK_SECONDS: "1.0"
+      STOCKGAME_DAY_SECONDS: "180"
+    ports:
+      - "8765:8765"
+    volumes:
+      - ../src:/app/src:ro

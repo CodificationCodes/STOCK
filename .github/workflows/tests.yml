@@ -1,0 +1,113 @@
+name: tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: python ${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          # The client must work on the platforms players actually use, so
+          # spot-check macOS and Windows on one version rather than the matrix.
+          - os: macos-latest
+            python: "3.12"
+          - os: windows-latest
+            python: "3.12"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[server,dev]"
+
+      - name: Test
+        run: pytest -q --cov --cov-report=xml
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+          if-no-files-found: ignore
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[server,dev]"
+      - run: ruff check src tests
+      - run: ruff format --check src tests
+      - name: Type check (advisory)
+        run: mypy || true
+
+  migrations:
+    name: migrations match the models
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[server,dev]"
+      - name: Apply migrations to an empty database
+        run: alembic upgrade head
+        env:
+          STOCKGAME_DATABASE_URL: sqlite+aiosqlite:///./ci.sqlite3
+      - name: Fail if the models have drifted from the migrations
+        run: alembic check
+        env:
+          STOCKGAME_DATABASE_URL: sqlite+aiosqlite:///./ci.sqlite3
+
+  docker:
+    name: server image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          load: true
+          tags: stockgame-server:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test the image
+        run: |
+          docker run -d --name sg -e STOCKGAME_SECRET_KEY=ci-not-a-real-secret \
+            -e STOCKGAME_HISTORY_DAYS=30 -p 8765:8765 stockgame-server:ci
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8765/api/health; then echo; exit 0; fi
+            sleep 2
+          done
+          echo "server did not become healthy"; docker logs sg; exit 1

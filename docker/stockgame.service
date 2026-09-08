@@ -1,0 +1,40 @@
+# systemd unit for running the server WITHOUT Docker.
+#
+#   sudo cp docker/stockgame.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now stockgame
+#
+# Assumes a `stockgame` user, a checkout at /opt/stockgame and a virtualenv
+# at /opt/stockgame/.venv (see docs/DEPLOYMENT.md).
+
+[Unit]
+Description=Stock Market Game server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=stockgame
+Group=stockgame
+WorkingDirectory=/opt/stockgame
+EnvironmentFile=/opt/stockgame/.env
+ExecStartPre=/opt/stockgame/.venv/bin/alembic upgrade head
+ExecStart=/opt/stockgame/.venv/bin/stockgame-server
+Restart=on-failure
+RestartSec=5s
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+# Hardening: the service only needs to write its own data directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/stockgame/data /opt/stockgame/logs
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
