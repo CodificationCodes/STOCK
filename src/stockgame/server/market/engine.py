@@ -30,6 +30,7 @@ from stockgame.server.config import Settings
 from stockgame.server.db.models import Candle, MarketEvent, MarketState, Stock
 from stockgame.server.db.session import Database
 from stockgame.server.market import pricing
+from stockgame.server.market.hours import TradingHours
 from stockgame.server.market.news import GeneratedNews, NewsGenerator
 from stockgame.server.market.pricing import MarketSim, StockSim
 from stockgame.server.market.universe import UNIVERSE
@@ -96,6 +97,7 @@ class MarketEngine:
         self.names: dict[str, str] = {}
         self.market = MarketSim()
         self.status = MarketStatus.OPEN
+        self.hours = TradingHours.from_settings(settings)
 
         self.day_index = 0
         self.tick_count = 0
@@ -194,8 +196,38 @@ class MarketEngine:
         self._recompute_divisor()
         self.index_value = self._compute_index()
 
-        if not self.settings.market_open:
-            self.status = MarketStatus.CLOSED
+        self._sync_schedule()
+        log.info("Trading hours: %s", self.hours.describe())
+        # A server that was down over the break resumes with a stale clock;
+        # without this the first tick would immediately roll a day.
+        if self._day_elapsed() >= self.settings.day_seconds:
+            self.day_started_at = datetime.now(timezone.utc)
+
+    def _day_elapsed(self) -> float:
+        return (datetime.now(timezone.utc) - self.day_started_at).total_seconds()
+
+    def _sync_schedule(self) -> MarketStatus | None:
+        """Align status with the wall clock. Returns the new status if it moved.
+
+        A halt is an operator decision, so the schedule never overrides it.
+        """
+        if self.status is MarketStatus.HALTED:
+            return None
+
+        now = datetime.now(timezone.utc)
+        should_open = self.settings.market_open and self.hours.is_open(now)
+        desired = MarketStatus.OPEN if should_open else MarketStatus.CLOSED
+        if desired is self.status:
+            return None
+
+        self.status = desired
+        if desired is MarketStatus.OPEN:
+            # Don't count the overnight break against the current day.
+            self.day_started_at = now
+            log.info("Market open (day %d)", self.day_index)
+        else:
+            log.info("Market closed until %s", self.hours.next_open(now).isoformat())
+        return desired
 
     # -- seeding ------------------------------------------------------------
 
@@ -387,6 +419,7 @@ class MarketEngine:
             raise RuntimeError("MarketEngine.load() must be called before tick()")
 
         result = TickResult(day_index=self.day_index, tick=self.tick_count)
+        result.status_changed = self._sync_schedule()
         if self.status is not MarketStatus.OPEN:
             result.status = self.status
             return result
@@ -422,8 +455,7 @@ class MarketEngine:
             await self._close_candle()
             result.candle_closed = True
 
-        elapsed = (datetime.now(timezone.utc) - self.day_started_at).total_seconds()
-        if elapsed >= self.settings.day_seconds:
+        if self._day_elapsed() >= self.settings.day_seconds:
             await self._roll_day()
             result.day_rolled = self.day_index
 
@@ -728,7 +760,13 @@ class MarketEngine:
             "ticks_per_day": self.ticks_per_day,
             "day_seconds": self.settings.day_seconds,
             "tick_seconds": self.settings.tick_seconds,
-            "day_elapsed": (datetime.now(timezone.utc) - self.day_started_at).total_seconds(),
+            "day_elapsed": self._day_elapsed(),
+            "hours": self.hours.describe(),
+            "next_open": (
+                None
+                if self.status is MarketStatus.OPEN
+                else self.hours.next_open(datetime.now(timezone.utc)).isoformat()
+            ),
             "index_value": self.index_value,
             "index_change_pct": (
                 (self.index_value - self.index_open) / self.index_open * 100
@@ -787,6 +825,8 @@ class TickResult:
     day_rolled: int | None = None
     candle_closed: bool = False
     status: MarketStatus | None = None
+    #: Set only on the tick where the wall-clock schedule opened or closed us.
+    status_changed: MarketStatus | None = None
     index_value: int = 0
     index_change_pct: float = 0.0
 

@@ -9,6 +9,7 @@ redraw the screen.
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from typing import Any
 
 from rich.console import Group
@@ -29,6 +30,21 @@ from stockgame.client.theme import (
 )
 from stockgame.client.widgets.chart import scale_bar
 from stockgame.shared.money import fmt_money, fmt_pct
+
+
+def format_reopen(raw: Any) -> str:
+    """``"opens 09:00"``, in the player's own timezone. Empty if unknown."""
+    if not isinstance(raw, str) or not raw:
+        return ""
+    try:
+        moment = datetime.fromisoformat(raw)
+    except ValueError:
+        return ""
+    local = moment.astimezone()
+    if local.date() == datetime.now().astimezone().date():
+        return f"opens {local:%H:%M}"
+    return f"opens {local:%a %H:%M}"
+
 
 REGIME_LABELS = {
     "euphoria": ("EUPHORIA", UP),
@@ -75,6 +91,9 @@ class TopBar(Static):
             "● OPEN" if market_state == "open" else f"● {market_state.upper()}",
             style=UP if market_state == "open" else WARNING,
         )
+        reopen = format_reopen(status.get("next_open"))
+        if reopen:
+            line.append(f" {reopen}", style=TEXT_DIM)
         line.append("  │ ", style=TEXT_DIM)
         line.append(f"DAY {status.get('day_index', 0)}", style=TEXT_DIM)
 

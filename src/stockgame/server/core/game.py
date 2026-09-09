@@ -146,7 +146,7 @@ class GameServer:
             await self.leaderboard.ensure_season()
             await self.leaderboard.recompute(self.engine.day_index)
 
-        if result.regime_changed or result.day_rolled is not None:
+        if result.regime_changed or result.day_rolled is not None or result.status_changed:
             await self.bus.publish(Event(Topics.MARKET_STATUS, self.engine.market_status()))
         for item in result.news:
             await self.bus.publish(

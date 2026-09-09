@@ -273,8 +273,7 @@ class ServerScreen(Screen):
             yield Static(
                 Align.center(
                     Text(
-                        "Host, host:port or full URL.\n"
-                        "e.g. stocks.example.com  ·  127.0.0.1:8765",
+                        "Host, host:port or full URL.\ne.g. stocks.example.com  ·  127.0.0.1:8765",
                         style=TEXT_DIM,
                     )
                 ),

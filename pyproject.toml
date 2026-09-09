@@ -47,6 +47,8 @@ server = [
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     "python-dotenv>=1.0",
+    # Windows ships no zoneinfo database, and trading hours need one.
+    "tzdata>=2024.1; sys_platform == 'win32'",
 ]
 postgres = ["asyncpg>=0.29"]
 dev = [

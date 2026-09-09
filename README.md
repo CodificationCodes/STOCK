@@ -72,6 +72,16 @@ Save the address so you don't have to type it every time:
 .venv/bin/stockgame
 ```
 
+## Market hours
+
+The market trades **09:00–15:00 Sydney time, Monday to Friday**. Outside the
+session it freezes: prices stop moving, the day counter stops advancing, and
+orders are rejected until the next open. You can still log in and look around —
+the header shows `● CLOSED` and when the market reopens.
+
+Running your own server? The window is configurable, including a 24/7 setting —
+see [Trading hours](docs/DEPLOYMENT.md#trading-hours).
+
 ## Updating
 
 Pull the latest code and re-run the installer:

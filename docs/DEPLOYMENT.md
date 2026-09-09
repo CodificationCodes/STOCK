@@ -266,11 +266,47 @@ handles this well); the schema is created by `alembic upgrade head` either way.
 
 ---
 
+## Trading hours
+
+The market keeps a wall-clock session and freezes outside it — prices stop
+moving, the simulated day stops advancing, and orders are rejected with the
+market closed. Defaults:
+
+```dotenv
+STOCKGAME_MARKET_TIMEZONE=Australia/Sydney
+STOCKGAME_MARKET_OPEN_TIME=09:00
+STOCKGAME_MARKET_CLOSE_TIME=15:00
+STOCKGAME_MARKET_WEEKDAYS_ONLY=true
+```
+
+Times are local to `STOCKGAME_MARKET_TIMEZONE`, so the bell stays at 09:00
+through daylight saving instead of drifting an hour twice a year.
+
+At the default `STOCKGAME_DAY_SECONDS=3600`, a six-hour session is six
+simulated days, so the market advances Monday to Friday and stands still over
+the weekend.
+
+**To run continuously instead**, open the full day and drop the weekday rule:
+
+```dotenv
+STOCKGAME_MARKET_OPEN_TIME=00:00
+STOCKGAME_MARKET_CLOSE_TIME=23:59
+STOCKGAME_MARKET_WEEKDAYS_ONLY=false
+```
+
+`STOCKGAME_MARKET_OPEN=false` is a separate master switch that keeps the
+market shut whatever the schedule says. To stop trading during a session
+without fighting the schedule, use the admin halt — the scheduler leaves a
+halt alone, but it will reopen a market you merely closed.
+
+---
+
 ## Tuning
 
 | Setting | Effect | When to change it |
 |---|---|---|
 | `STOCKGAME_TICK_SECONDS` | Price update frequency | Lower for a livelier market and more CPU/bandwidth; 2s is a good default |
+| `STOCKGAME_MARKET_OPEN_TIME` / `_CLOSE_TIME` | Session window | See [Trading hours](#trading-hours) |
 | `STOCKGAME_DAY_SECONDS` | Length of a simulated day | Shorter = faster seasons, more daily candles, more rollover work |
 | `STOCKGAME_TICKS_PER_CANDLE` | 1D chart resolution | Higher = fewer rows written |
 | `STOCKGAME_LEADERBOARD_INTERVAL_SECONDS` | Ranking refresh | Raise it if you have hundreds of players |

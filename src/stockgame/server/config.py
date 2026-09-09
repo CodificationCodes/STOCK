@@ -68,7 +68,14 @@ class Settings(BaseSettings):
     market_seed: int = 20260101
     #: Per-trade commission in dollars. 0 keeps the game frictionless.
     commission: float = 0.0
+    #: Master switch. False keeps the market shut regardless of the schedule.
     market_open: bool = True
+    #: Wall-clock trading session. Outside it the market freezes: prices stop
+    #: moving, the simulated day stops advancing, and orders are rejected.
+    market_timezone: str = "Australia/Sydney"
+    market_open_time: str = "09:00"
+    market_close_time: str = "15:00"
+    market_weekdays_only: bool = True
 
     # -- Leaderboard / seasons ----------------------------------------------
     leaderboard_interval_seconds: int = 30
