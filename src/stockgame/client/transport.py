@@ -16,10 +16,12 @@ import contextlib
 import json
 import logging
 import random
+import ssl
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+import certifi
 import httpx
 import websockets
 
@@ -33,6 +35,11 @@ REQUEST_TIMEOUT = 15.0
 RECONNECT_BASE_DELAY = 1.0
 RECONNECT_MAX_DELAY = 30.0
 HTTP_TIMEOUT = 20.0
+
+# websockets falls back to the OpenSSL system CA store, which is empty on the
+# python.org macOS builds unless the user runs Install Certificates.command.
+# httpx already trusts certifi, so pin the socket to the same bundle.
+TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
 class ClientError(Exception):
@@ -204,6 +211,7 @@ class GameConnection:
         await self._notify_status("connecting", "Connecting...")
         async with websockets.connect(
             self.url,
+            ssl=TLS_CONTEXT if self.url.startswith("wss://") else None,
             max_size=4 * 1024 * 1024,
             ping_interval=20,
             ping_timeout=20,
