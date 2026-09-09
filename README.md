@@ -72,6 +72,35 @@ Save the address so you don't have to type it every time:
 .venv/bin/stockgame
 ```
 
+## Updating
+
+Pull the latest code and re-run the installer:
+
+```bash
+git pull
+./install.sh
+```
+
+Use `./install.sh --server` instead if you also run a server. The re-run matters
+— `install.sh` installs the client into `.venv`, so a `git pull` on its own
+leaves you playing the old build.
+
+### "refusing to merge unrelated histories"
+
+If `git pull` fails with that message, your clone predates a history rewrite and
+can't be fast-forwarded. Re-clone once and you're back on the normal path above:
+
+```bash
+cd ..
+rm -rf stock-market-game
+git clone https://github.com/CodificationCodes/stock-market-game
+cd stock-market-game
+./install.sh
+```
+
+Your account lives on the server, not on your machine, so nothing in your
+portfolio is affected by any of this.
+
 ## Controls
 
 | Key | Action | | Key | Action |
