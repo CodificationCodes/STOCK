@@ -35,8 +35,8 @@ Clone the repo and run the installer — it creates a virtual environment and
 installs everything you need for both the client and a local server:
 
 ```bash
-git clone https://github.com/CodificationCodes/stock-market-game
-cd stock-market-game
+git clone https://github.com/CodificationCodes/STOCK
+cd STOCK
 ./install.sh --server
 ```
 
@@ -59,8 +59,8 @@ Press `R` to register. You start with **$100,000**. Press `?` for the key map.
 You don't need the server stack at all:
 
 ```bash
-git clone https://github.com/CodificationCodes/stock-market-game
-cd stock-market-game
+git clone https://github.com/CodificationCodes/STOCK
+cd STOCK
 ./install.sh
 .venv/bin/stockgame --server <address-of-server>
 ```
@@ -92,9 +92,9 @@ can't be fast-forwarded. Re-clone once and you're back on the normal path above:
 
 ```bash
 cd ..
-rm -rf stock-market-game
-git clone https://github.com/CodificationCodes/stock-market-game
-cd stock-market-game
+rm -rf STOCK
+git clone https://github.com/CodificationCodes/STOCK
+cd STOCK
 ./install.sh
 ```
 

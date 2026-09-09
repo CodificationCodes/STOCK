@@ -63,8 +63,8 @@ stockgame-server = "stockgame.server.cli:main"
 stockgame-admin = "stockgame.server.admin:main"
 
 [project.urls]
-Homepage = "https://github.com/SpikeForsythe/stock-market-game"
-Issues = "https://github.com/SpikeForsythe/stock-market-game/issues"
+Homepage = "https://github.com/CodificationCodes/STOCK"
+Issues = "https://github.com/CodificationCodes/STOCK/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/stockgame"]

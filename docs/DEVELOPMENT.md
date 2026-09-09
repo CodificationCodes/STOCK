@@ -3,8 +3,8 @@
 ## Setup
 
 ```bash
-git clone https://github.com/SpikeForsythe/stock-market-game
-cd stock-market-game
+git clone https://github.com/CodificationCodes/STOCK
+cd STOCK
 ./install.sh --dev          # editable install + server extras + test tooling
 ```
 

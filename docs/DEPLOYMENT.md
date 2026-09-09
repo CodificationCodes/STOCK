@@ -29,7 +29,7 @@ players.
 ```bash
 sudo mkdir -p /opt/stockgame
 sudo chown "$USER" /opt/stockgame
-git clone https://github.com/SpikeForsythe/stock-market-game /opt/stockgame
+git clone https://github.com/CodificationCodes/STOCK /opt/stockgame
 cd /opt/stockgame
 
 cp .env.example .env
@@ -126,7 +126,7 @@ Register the **first** account yourself — it is automatically the admin.
 
 ```bash
 sudo useradd --system --create-home --home-dir /opt/stockgame stockgame
-sudo -u stockgame git clone https://github.com/SpikeForsythe/stock-market-game /opt/stockgame
+sudo -u stockgame git clone https://github.com/CodificationCodes/STOCK /opt/stockgame
 cd /opt/stockgame
 
 sudo -u stockgame python3 -m venv .venv
