@@ -278,36 +278,36 @@ HELP_SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
     (
         "NAVIGATION",
         (
-            ("M", "Market overview"),
-            ("T", "Ticker / stock detail"),
+            ("M", "Market"),
+            ("T", "Ticker / detail"),
             ("P", "Portfolio"),
             ("W", "Watchlist"),
-            ("O", "Orders and trade history"),
+            ("O", "Orders & history"),
             ("L", "Leaderboard"),
             ("N", "News feed"),
             ("U", "Your profile"),
-            ("Tab / ↑ ↓", "Move between rows"),
-            ("Enter", "Open the selected symbol, or a rival's book in LEAGUE"),
+            ("Tab / up down", "Move between rows"),
+            ("Enter", "Open symbol / player"),
             ("Esc", "Back / close"),
         ),
     ),
     (
         "TRADING",
         (
-            ("B", "Buy the selected symbol"),
-            ("S", "Sell the selected symbol"),
-            ("C", "Cancel the selected open order"),
-            ("I", "Insider desk — buy a rumour, at your own risk"),
-            ("F2 (in ticket)", "Toggle market / limit"),
-            ("F3 (in ticket)", "Maximum size"),
+            ("B", "Buy selected"),
+            ("S", "Sell selected"),
+            ("C", "Cancel open order"),
+            ("I", "Insider desk"),
+            ("F2 in ticket", "Market / limit"),
+            ("F3 in ticket", "Maximum size"),
         ),
     ),
     (
         "CHARTS",
         (
-            ("1 2 3 4 5", "1D · 1W · 1M · 3M · 1Y"),
-            ("V", "Toggle candles / line"),
-            ("+ / -", "Add or remove from the watchlist"),
+            ("1 2 3 4 5", "1D 1W 1M 3M 1Y"),
+            ("V", "Candles / line"),
+            ("+ / -", "Add / remove watch"),
         ),
     ),
     (
@@ -329,26 +329,26 @@ class HelpDialog(ModalScreen[None]):
         Binding("q", "close", "Close", show=False),
     ]
 
-    def compose(self) -> ComposeResult:
-        table = Table.grid(padding=(0, 3))
-        table.add_column(width=18)
-        table.add_column(width=30)
-        table.add_column(width=18)
-        table.add_column(width=30)
+    #: Widest key label, so the description column starts in the same place
+    #: in every section. Wrapping here is what makes the whole card unreadable,
+    #: so entries are truncated rather than allowed to flow onto a second line.
+    KEY_WIDTH = 14
+    DESCRIPTION_WIDTH = 20
 
+    def compose(self) -> ComposeResult:
         columns: list[list[Text]] = [[], []]
         for index, (heading, rows) in enumerate(HELP_SECTIONS):
             target = columns[index % 2]
-            block = Text()
+            block = Text(no_wrap=True, overflow="ellipsis")
             block.append(f"{heading}\n", style=f"bold {ACCENT}")
             for key, description in rows:
-                block.append(f"  {key:<16}", style="bold white")
-                block.append(f"{description}\n", style=NEUTRAL)
+                block.append(f"  {key:<{self.KEY_WIDTH}}", style="bold white")
+                block.append(f"{description[: self.DESCRIPTION_WIDTH]}\n", style=NEUTRAL)
             target.append(block)
 
-        grid = Table.grid(padding=(1, 4))
-        grid.add_column()
-        grid.add_column()
+        grid = Table.grid(padding=(1, 3))
+        grid.add_column(width=self.KEY_WIDTH + self.DESCRIPTION_WIDTH + 2)
+        grid.add_column(width=self.KEY_WIDTH + self.DESCRIPTION_WIDTH + 2)
         for left, right in zip(columns[0], columns[1] + [Text("")], strict=False):
             grid.add_row(left, right)
 
@@ -457,9 +457,10 @@ class InsiderDialog(ModalScreen[float | None]):
             yield Static(Text("INSIDER DESK", style=f"bold {ACCENT}"))
             yield Static(
                 Text(
-                    "\n  Pay for word of a stock about to move. A bigger cheque buys a\n"
-                    "  bigger rumour, but the desk is not always honest and the fee is\n"
-                    "  never refunded.\n",
+                    "\n  Pay for word of a stock about to move.\n"
+                    "  A bigger cheque buys a bigger rumour, but\n"
+                    "  the desk is not always honest and the fee\n"
+                    "  is never refunded.\n",
                     style=TEXT_DIM,
                 )
             )

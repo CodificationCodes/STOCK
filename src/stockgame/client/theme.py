@@ -241,7 +241,8 @@ TradeDialog {{
 HelpDialog {{ align: center middle; }}
 
 #help-card {{
-    width: 76;
+    width: 80;
+    max-width: 98%;
     height: auto;
     max-height: 90%;
     background: {PANEL};
@@ -263,6 +264,7 @@ InsiderDialog {{ align: center middle; }}
 
 #insider-card {{
     width: 64;
+    max-width: 98%;
     height: auto;
     max-height: 90%;
     background: {PANEL};
@@ -274,6 +276,7 @@ PlayerDialog {{ align: center middle; }}
 
 #player-card {{
     width: 66;
+    max-width: 98%;
     height: auto;
     max-height: 90%;
     background: {PANEL};
