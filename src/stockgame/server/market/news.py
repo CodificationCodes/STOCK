@@ -18,9 +18,28 @@ a panic than in a calm market.
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from stockgame.shared.enums import NewsScope, NewsSentiment, Sector
+
+
+def mean_magnitude(templates: Sequence[NewsTemplate]) -> float:
+    return sum((t.impact_min + t.impact_max) / 2 for t in templates) / len(templates)
+
+
+def balanced_probability(bias: float, mean_positive: float, mean_negative: float) -> float:
+    """Turn a sentiment *bias* into a probability of good news.
+
+    Bad headlines hit harder than good ones, so drawing each 50/50 would make
+    the market bleed on average. Reweighting by magnitude means ``bias=0.5``
+    is genuinely neutral -- good news is then slightly more frequent but
+    individually smaller, which is also how real markets behave.
+    """
+    if bias <= 0.0 or bias >= 1.0:
+        return max(0.0, min(1.0, bias))
+    odds = (bias / (1.0 - bias)) * (mean_negative / mean_positive)
+    return odds / (1.0 + odds)
 
 
 @dataclass(frozen=True, slots=True)
@@ -383,6 +402,15 @@ MARKET_NEWS: tuple[NewsTemplate, ...] = (
     ),
 )
 
+def _split(templates: Sequence[NewsTemplate], positive: bool) -> tuple[NewsTemplate, ...]:
+    return tuple(t for t in templates if (t.sentiment is NewsSentiment.POSITIVE) is positive)
+
+
+SECTOR_GOOD = _split(SECTOR_NEWS, True)
+SECTOR_BAD = _split(SECTOR_NEWS, False)
+MARKET_GOOD = _split(MARKET_NEWS, True)
+MARKET_BAD = _split(MARKET_NEWS, False)
+
 EARNINGS_GOOD = NewsTemplate(
     "{name} reports stronger-than-expected earnings",
     "Revenue and margins both beat consensus for the quarter.",
@@ -405,6 +433,11 @@ class NewsGenerator:
     def __init__(self, rng: random.Random) -> None:
         self.rng = rng
 
+    def _positive(self, bias: float, good: Sequence[NewsTemplate], bad: Sequence[NewsTemplate]):
+        return self.rng.random() < balanced_probability(
+            bias, mean_magnitude(good), mean_magnitude(bad)
+        )
+
     def company_news(
         self,
         symbol: str,
@@ -415,7 +448,7 @@ class NewsGenerator:
         bias: float = 0.5,
     ) -> GeneratedNews:
         if positive is None:
-            positive = self.rng.random() < bias
+            positive = self._positive(bias, COMPANY_GOOD, COMPANY_BAD)
         pool: list[NewsTemplate] = list(COMPANY_GOOD if positive else COMPANY_BAD)
         flavour = SECTOR_FLAVOUR.get(sector)
         if flavour:
@@ -430,13 +463,13 @@ class NewsGenerator:
         return self._build(template, NewsScope.COMPANY, symbol=symbol, name=name, sector=sector)
 
     def sector_news(self, sector: Sector, *, bias: float = 0.5) -> GeneratedNews:
-        positive = self.rng.random() < bias
+        positive = self._positive(bias, SECTOR_GOOD, SECTOR_BAD)
         pool = [t for t in SECTOR_NEWS if (t.sentiment is NewsSentiment.POSITIVE) == positive]
         template = self.rng.choice(pool or list(SECTOR_NEWS))
         return self._build(template, NewsScope.SECTOR, sector=sector)
 
     def market_news(self, *, bias: float = 0.5) -> GeneratedNews:
-        positive = self.rng.random() < bias
+        positive = self._positive(bias, MARKET_GOOD, MARKET_BAD)
         pool = [t for t in MARKET_NEWS if (t.sentiment is NewsSentiment.POSITIVE) == positive]
         template = self.rng.choice(pool or list(MARKET_NEWS))
         return self._build(template, NewsScope.MARKET)

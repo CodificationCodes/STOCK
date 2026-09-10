@@ -224,6 +224,23 @@ class TestNewsGeneration:
         )
         assert positive > 70
 
+    def test_a_neutral_bias_does_not_drag_the_market_down(self):
+        """Bad headlines hit harder than good ones, so a 50/50 coin flip used
+        to bleed the index. At bias 0.5 the *expected impact* must be ~zero."""
+        generator = NewsGenerator(random.Random(5))
+        for label, draw in (
+            ("company", lambda: generator.company_news("ACME", "Acme", Sector.TECHNOLOGY)),
+            ("sector", lambda: generator.sector_news(Sector.MINING)),
+            ("market", generator.market_news),
+        ):
+            mean_impact = sum(draw().impact for _ in range(4000)) / 4000
+            assert abs(mean_impact) < 0.002, f"{label} news drifts: {mean_impact:+.4f}"
+
+    def test_a_bearish_regime_still_skews_negative(self):
+        generator = NewsGenerator(random.Random(6))
+        mean_impact = sum(generator.market_news(bias=0.24).impact for _ in range(2000)) / 2000
+        assert mean_impact < -0.01
+
     def test_sector_and_market_news_have_no_symbol(self):
         generator = NewsGenerator(random.Random(4))
         assert generator.sector_news(Sector.ENERGY).symbol is None
