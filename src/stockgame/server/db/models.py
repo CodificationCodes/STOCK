@@ -415,3 +415,35 @@ class Achievement(Base):
     unlocked_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, nullable=False)
 
     __table_args__ = (UniqueConstraint("user_id", "code", name="uq_achievement"),)
+
+
+class InsiderTip(Base):
+    """A bought rumour about a stock that is 'about to move'.
+
+    The fee is spent immediately and never refunded -- that is the whole
+    risk. ``genuine`` is decided at purchase but must not reach the buyer
+    until the move either happens or does not.
+    """
+
+    __tablename__ = "insider_tips"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    public_id: Mapped[str] = mapped_column(String(22), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    stock_id: Mapped[int] = mapped_column(
+        ForeignKey("stocks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    fee_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    #: The move the tip advertises, as a percentage.
+    promised_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    #: What the stock will actually be pushed by. Smaller on a dud.
+    actual_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    genuine: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    #: When the push lands. Until then the buyer can accumulate.
+    applies_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
+    applied: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, nullable=False)
+
+    stock: Mapped[Stock] = relationship(lazy="joined")

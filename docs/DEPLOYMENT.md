@@ -301,11 +301,36 @@ halt alone, but it will reopen a market you merely closed.
 
 ---
 
+## The insider desk
+
+Players can buy a rumour that pushes one stock. The fee is destroyed, which is
+the only thing stopping it printing money, so treat these as economy dials and
+watch the leaderboard after changing them.
+
+```dotenv
+STOCKGAME_INSIDER_ENABLED=true
+STOCKGAME_INSIDER_MIN_FEE=5000        # the desk ignores anything smaller
+STOCKGAME_INSIDER_MAX_FEE=250000      # fees are capped here
+STOCKGAME_INSIDER_FEE_HALFWAY=40000   # fee that buys half the maximum move
+STOCKGAME_INSIDER_MIN_MOVE_PCT=3
+STOCKGAME_INSIDER_MAX_MOVE_PCT=16
+STOCKGAME_INSIDER_DUD_CHANCE=0.35     # share of tips that are worthless
+STOCKGAME_INSIDER_DUD_SHARE=0.12      # what a dud delivers, as a fraction
+STOCKGAME_INSIDER_LEAD_SECONDS=90     # time to build a position before it lands
+```
+
+`STOCKGAME_INSIDER_ENABLED=false` turns the desk off entirely. If tips look too
+strong, raise `FEE_HALFWAY` (more money for the same move) or `DUD_CHANCE`
+before touching the move range.
+
+---
+
 ## Tuning
 
 | Setting | Effect | When to change it |
 |---|---|---|
 | `STOCKGAME_TICK_SECONDS` | Price update frequency | Lower for a livelier market and more CPU/bandwidth; 2s is a good default |
+| `STOCKGAME_ORDER_DELAY_SECONDS` | Settlement delay before a fill | Raise to punish news-sniping harder; 0 restores instant fills |
 | `STOCKGAME_MARKET_OPEN_TIME` / `_CLOSE_TIME` | Session window | See [Trading hours](#trading-hours) |
 | `STOCKGAME_DAY_SECONDS` | Length of a simulated day | Shorter = faster seasons, more daily candles, more rollover work |
 | `STOCKGAME_TICKS_PER_CANDLE` | 1D chart resolution | Higher = fewer rows written |

@@ -72,6 +72,24 @@ class Settings(BaseSettings):
     #: This is what stops a player reading a headline and front-running it.
     #: 0 restores instant execution.
     order_delay_seconds: float = 25.0
+
+    # -- Insider tips --------------------------------------------------------
+    #: Buying a rumour is meant to hurt. Below this the desk will not talk.
+    insider_enabled: bool = True
+    insider_min_fee: float = 5_000.0
+    insider_max_fee: float = 250_000.0
+    #: Fee at which you get roughly half the maximum move; the payoff curve
+    #: saturates, so paying ten times as much is not ten times the move.
+    insider_fee_halfway: float = 40_000.0
+    #: The advertised move runs between these, scaled by what you paid.
+    insider_min_move_pct: float = 3.0
+    insider_max_move_pct: float = 16.0
+    #: How often the tip is worthless. A dud still nudges the price a little,
+    #: which is exactly what makes a bad tip hard to tell from a good one.
+    insider_dud_chance: float = 0.35
+    insider_dud_share: float = 0.12
+    #: Seconds between paying and the move landing, so there is time to buy.
+    insider_lead_seconds: float = 90.0
     #: Master switch. False keeps the market shut regardless of the schedule.
     market_open: bool = True
     #: Wall-clock trading session. Outside it the market freezes: prices stop

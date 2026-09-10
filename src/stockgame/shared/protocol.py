@@ -80,6 +80,8 @@ class ClientMessage(StrEnum):
     WATCHLIST_ADD = "watchlist_add"
     WATCHLIST_REMOVE = "watchlist_remove"
     GET_WATCHLIST = "get_watchlist"
+    GET_TIPS = "get_tips"
+    BUY_TIP = "buy_tip"
 
 
 class ServerMessage(StrEnum):
@@ -103,6 +105,7 @@ class ServerMessage(StrEnum):
     TAPE = "tape"  # someone else's fill (anonymised)
     LEADERBOARD = "leaderboard"
     PROFILE = "profile"
+    TIPS = "tips"
     NEWS = "news"
     NEWS_ITEM = "news_item"
     WATCHLIST = "watchlist"

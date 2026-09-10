@@ -297,6 +297,7 @@ HELP_SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
             ("B", "Buy the selected symbol"),
             ("S", "Sell the selected symbol"),
             ("C", "Cancel the selected open order"),
+            ("I", "Insider desk — buy a rumour, at your own risk"),
             ("F2 (in ticket)", "Toggle market / limit"),
             ("F3 (in ticket)", "Maximum size"),
         ),
@@ -431,4 +432,92 @@ class PlayerDialog(ModalScreen[None]):
         return table
 
     def action_close(self) -> None:
+        self.dismiss(None)
+
+
+class InsiderDialog(ModalScreen[float | None]):
+    """The insider desk: pay for a rumour about a stock that may be about to run.
+
+    Deliberately uncomfortable. The fee is gone the moment it is paid, the
+    stock is not yours to choose, and roughly a third of tips are worthless.
+    """
+
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+    ]
+
+    def __init__(self, tips: list[dict[str, Any]], min_fee: float, max_fee: float) -> None:
+        super().__init__()
+        self.tips = tips
+        self.min_fee = min_fee
+        self.max_fee = max_fee
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="insider-card"):
+            yield Static(Text("INSIDER DESK", style=f"bold {ACCENT}"))
+            yield Static(
+                Text(
+                    "\n  Pay for word of a stock about to move. A bigger cheque buys a\n"
+                    "  bigger rumour, but the desk is not always honest and the fee is\n"
+                    "  never refunded.\n",
+                    style=TEXT_DIM,
+                )
+            )
+            yield Static(
+                Text(
+                    f"  Between ${self.min_fee:,.0f} and ${self.max_fee:,.0f}",
+                    style=TEXT,
+                )
+            )
+            yield Input(placeholder="amount in dollars", id="insider-amount")
+            yield Static(self._history())
+            with Horizontal(id="auth-buttons"):
+                yield Button("Buy tip", id="buy", classes="-primary")
+                yield Button("Cancel", id="cancel")
+
+    def _history(self) -> Any:
+        if not self.tips:
+            return Text("\n  You have never bought a tip.\n", style=TEXT_DIM)
+        table = Table.grid(padding=(0, 2))
+        table.add_column(width=8)
+        table.add_column(width=12, justify="right")
+        table.add_column(width=10, justify="right")
+        table.add_column(width=14)
+        table.add_row(
+            Text("SYMBOL", style=NEUTRAL),
+            Text("PAID", style=NEUTRAL),
+            Text("PROMISED", style=NEUTRAL),
+            Text("OUTCOME", style=NEUTRAL),
+        )
+        for tip in self.tips[:6]:
+            if not tip.get("applied"):
+                outcome, style = "pending", TEXT_DIM
+            elif tip.get("genuine"):
+                outcome, style = f"real {tip.get('actual_pct', 0):+.1f}%", UP
+            else:
+                outcome, style = f"dud {tip.get('actual_pct', 0):+.1f}%", DOWN
+            table.add_row(
+                Text(tip["symbol"], style="bold white"),
+                Text(fmt_money(tip["fee_cents"]), style=TEXT),
+                Text(f"{tip['promised_pct']:+.1f}%", style=TEXT),
+                Text(outcome, style=style),
+            )
+        return table
+
+    @on(Button.Pressed, "#buy")
+    @on(Input.Submitted, "#insider-amount")
+    def action_buy(self) -> None:
+        raw = self.query_one("#insider-amount", Input).value.replace(",", "").replace("$", "")
+        try:
+            amount = float(raw)
+        except ValueError:
+            self.notify("Enter an amount in dollars.", severity="warning")
+            return
+        if amount < self.min_fee:
+            self.notify(f"The desk wants at least ${self.min_fee:,.0f}.", severity="warning")
+            return
+        self.dismiss(amount)
+
+    @on(Button.Pressed, "#cancel")
+    def action_cancel(self) -> None:
         self.dismiss(None)

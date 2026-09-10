@@ -21,6 +21,7 @@ from stockgame.client.screens.dashboard import DashboardScreen
 from stockgame.client.screens.dialogs import (
     ConfirmDialog,
     HelpDialog,
+    InsiderDialog,
     PlayerDialog,
     TradeDialog,
 )
@@ -295,6 +296,35 @@ class StockGameApp(App):
         if dashboard:
             dashboard.action_show("stock")
         self.load_symbol(symbol)
+
+    @work(group="insider")
+    async def open_insider_desk(self) -> None:
+        """Buy a rumour. The desk decides the stock; the fee is never refunded."""
+        connection = self.connection
+        if connection is None:
+            return
+        try:
+            payload = await connection.request(ClientMessage.GET_TIPS, {})
+        except ClientError as exc:
+            self.notify(str(exc), severity="warning")
+            return
+
+        amount = await self.push_screen_wait(
+            InsiderDialog(
+                payload.get("tips", []),
+                float(payload.get("min_fee", 5000.0)),
+                float(payload.get("max_fee", 250000.0)),
+            )
+        )
+        if amount is None:
+            return
+        try:
+            await connection.request(ClientMessage.BUY_TIP, {"amount": amount})
+        except ClientError as exc:
+            self.notify(str(exc), severity="error")
+            return
+        self.notify("The desk has taken your money. Watch your tips.", timeout=4)
+        self.refresh_everything()
 
     @work(group="player")
     async def open_player(self, username: str) -> None:

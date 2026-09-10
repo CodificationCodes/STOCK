@@ -54,6 +54,10 @@ cd STOCK
 
 Press `R` to register. You start with **$100,000**. Press `?` for the key map.
 
+Orders do not fill instantly: they settle for about half a minute and then
+fill at whatever the price is by then, so reading a headline is a bet on where
+the price goes rather than a race.
+
 ### Just want to play on someone else's server?
 
 You don't need the server stack at all:
@@ -111,6 +115,17 @@ cd STOCK
 Your account lives on the server, not on your machine, so nothing in your
 portfolio is affected by any of this.
 
+## The insider desk
+
+Press `I` to buy a rumour. It names one stock and advertises a move; a bigger
+cheque buys a bigger rumour, on a curve that flattens out so the deepest
+pockets cannot simply buy the game. The fee is gone the moment you pay it.
+
+Roughly a third of tips are duds. A dud still nudges the price, just far less
+than promised, so you cannot tell a good tip from a bad one until it lands --
+and the move only starts a minute or so after you pay, which is your window to
+build a position.
+
 ## Controls
 
 | Key | Action | | Key | Action |
@@ -120,6 +135,7 @@ portfolio is affected by any of this.
 | `P` | Portfolio | | `C` | Cancel selected order |
 | `W` | Watchlist | | `O` | Orders & history |
 | `L` | Leaderboard | | `N` | News |
+| `I` | Insider desk | | `F` | Re-sort the market |
 | `U` | Profile | | `?` | Help |
 | `Q` | Quit | | `Esc` | Back |
 

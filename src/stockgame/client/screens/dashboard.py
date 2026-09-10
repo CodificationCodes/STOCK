@@ -67,6 +67,7 @@ class DashboardScreen(Screen):
         Binding("s", "sell", "Sell"),
         Binding("c", "cancel_order", "Cancel", show=False),
         Binding("f", "cycle_sort", "Sort", show=False),
+        Binding("i", "insider", "Insider desk", show=False),
         Binding("g", "cycle_board", "Board", show=False),
         Binding("v", "toggle_chart", "Chart", show=False),
         Binding("r", "refresh_all", "Refresh", show=False),
@@ -273,6 +274,9 @@ class DashboardScreen(Screen):
         symbol = self.selected_symbol()
         if symbol:
             self.app.watchlist_remove(symbol)
+
+    def action_insider(self) -> None:
+        self.app.open_insider_desk()
 
     def action_cycle_sort(self) -> None:
         if self.active_view == "market":

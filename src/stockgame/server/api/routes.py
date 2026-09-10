@@ -39,6 +39,10 @@ class Credentials(BaseModel):
     password: str = Field(min_length=PASSWORD_MIN, max_length=128)
 
 
+class TipPurchase(BaseModel):
+    amount: float = Field(gt=0)
+
+
 class PasswordChange(BaseModel):
     current_password: str = Field(max_length=128)
     new_password: str = Field(min_length=PASSWORD_MIN, max_length=128)
@@ -207,6 +211,18 @@ def build_router(game: GameServer, gateway) -> APIRouter:
         user: Annotated[AuthenticatedUser, Depends(current_user)],
     ) -> dict[str, Any]:
         return await game.portfolios.get_portfolio(user.id)
+
+    @router.get("/insider")
+    async def insider_tips(
+        user: Annotated[AuthenticatedUser, Depends(current_user)],
+    ) -> dict[str, Any]:
+        return {"tips": await game.insider.list_tips(user.id)}
+
+    @router.post("/insider")
+    async def buy_insider_tip(
+        body: TipPurchase, user: Annotated[AuthenticatedUser, Depends(current_user)]
+    ) -> dict[str, Any]:
+        return await game.insider.buy_tip(user.id, body.amount)
 
     @router.get("/leaderboard")
     async def leaderboard(

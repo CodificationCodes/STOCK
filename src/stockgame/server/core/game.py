@@ -28,6 +28,7 @@ from stockgame.server.db.session import Database
 from stockgame.server.market.engine import MarketEngine
 from stockgame.server.services.achievements import AchievementService
 from stockgame.server.services.auth import AuthService
+from stockgame.server.services.insider import InsiderService
 from stockgame.server.services.leaderboard import LeaderboardService
 from stockgame.server.services.market_data import MarketDataService
 from stockgame.server.services.portfolio import PortfolioService
@@ -53,6 +54,7 @@ class GameServer:
         self.trading = TradingService(self.db, settings, self.engine, self.bus)
         self.leaderboard = LeaderboardService(self.db, settings, self.portfolios, self.bus)
         self.achievements = AchievementService(self.db, self.bus)
+        self.insider = InsiderService(self.db, settings, self.engine)
         self.market_data = MarketDataService(self.db, self.engine)
 
         self.auth_limiter = RateLimiter(settings.auth_rate_limit, settings.auth_rate_window_seconds)
@@ -140,6 +142,9 @@ class GameServer:
         self.ticks_processed += 1
 
         if result.prices:
+            # Tips land before orders settle, so a bought rumour is already in
+            # the price when the orders chasing it fill.
+            await self.insider.apply_due_tips()
             await self.trading.process_resting_orders()
 
         if result.day_rolled is not None:

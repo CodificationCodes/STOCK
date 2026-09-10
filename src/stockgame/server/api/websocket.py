@@ -389,6 +389,30 @@ class WebSocketGateway:
         payload["your_rank"] = self.game.leaderboard.rank_of(connection.user_id)
         connection.send_soon(encode(ServerMessage.LEADERBOARD, payload, ref=ref))
 
+    async def _handle_get_tips(
+        self, connection: Connection, data: dict[str, Any], ref: str | None
+    ) -> None:
+        connection.send_soon(
+            encode(ServerMessage.TIPS, await self._tips_payload(connection), ref=ref)
+        )
+
+    async def _tips_payload(self, connection: Connection) -> dict[str, Any]:
+        settings = self.game.settings
+        return {
+            "tips": await self.game.insider.list_tips(connection.user_id),
+            "min_fee": settings.insider_min_fee,
+            "max_fee": settings.insider_max_fee,
+            "enabled": settings.insider_enabled,
+        }
+
+    async def _handle_buy_tip(
+        self, connection: Connection, data: dict[str, Any], ref: str | None
+    ) -> None:
+        await self.game.insider.buy_tip(connection.user_id, data.get("amount", 0))
+        connection.send_soon(
+            encode(ServerMessage.TIPS, await self._tips_payload(connection), ref=ref)
+        )
+
     async def _handle_get_profile(
         self, connection: Connection, data: dict[str, Any], ref: str | None
     ) -> None:
@@ -582,6 +606,8 @@ _HANDLERS = {
     ClientMessage.GET_PROFILE.value: WebSocketGateway._handle_get_profile,
     ClientMessage.GET_NEWS.value: WebSocketGateway._handle_get_news,
     ClientMessage.GET_WATCHLIST.value: WebSocketGateway._handle_get_watchlist,
+    ClientMessage.GET_TIPS.value: WebSocketGateway._handle_get_tips,
+    ClientMessage.BUY_TIP.value: WebSocketGateway._handle_buy_tip,
     ClientMessage.WATCHLIST_ADD.value: WebSocketGateway._handle_watchlist_add,
     ClientMessage.WATCHLIST_REMOVE.value: WebSocketGateway._handle_watchlist_remove,
 }

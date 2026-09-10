@@ -259,6 +259,17 @@ ConfirmDialog {{ align: center middle; }}
     padding: 1 2;
 }}
 
+InsiderDialog {{ align: center middle; }}
+
+#insider-card {{
+    width: 64;
+    height: auto;
+    max-height: 90%;
+    background: {PANEL};
+    border: round {WARNING};
+    padding: 1 2;
+}}
+
 PlayerDialog {{ align: center middle; }}
 
 #player-card {{
