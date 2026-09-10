@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     market_seed: int = 20260101
     #: Per-trade commission in dollars. 0 keeps the game frictionless.
     commission: float = 0.0
+    #: Seconds an order sits before it can fill, at the price prevailing then.
+    #: This is what stops a player reading a headline and front-running it.
+    #: 0 restores instant execution.
+    order_delay_seconds: float = 25.0
     #: Master switch. False keeps the market shut regardless of the schedule.
     market_open: bool = True
     #: Wall-clock trading session. Outside it the market freezes: prices stop

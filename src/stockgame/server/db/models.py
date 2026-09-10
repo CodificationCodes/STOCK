@@ -231,6 +231,9 @@ class Order(Base):
     )
     #: Resting orders are cancelled at this simulated day; NULL = good til cancelled.
     expires_day: Mapped[int | None] = mapped_column(Integer)
+    #: Settlement delay: the order cannot fill before this moment. NULL means
+    #: it was eligible immediately (the old behaviour, and any zero-delay run).
+    execute_after: Mapped[datetime | None] = mapped_column(UTCDateTime, index=True)
 
     stock: Mapped[Stock] = relationship(lazy="joined")
 

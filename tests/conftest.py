@@ -44,6 +44,9 @@ def settings(tmp_path: Path) -> Settings:
         order_rate_limit=1000,
         leaderboard_interval_seconds=3600,
         starting_cash=100_000.0,
+        # Instant fills by default; tests/test_settlement.py opts in to the
+        # delay so the rest of the suite does not have to wait on a clock.
+        order_delay_seconds=0.0,
         # Always open, so the suite does not depend on when it is run.
         # tests/test_hours.py covers the real schedule.
         market_open_time="00:00",

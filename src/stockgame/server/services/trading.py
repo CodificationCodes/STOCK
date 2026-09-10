@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import func, select
@@ -53,6 +53,19 @@ from stockgame.shared.validation import (
 log = logging.getLogger("stockgame.trading")
 
 OPEN_STATUSES = (str(OrderStatus.PENDING.value), str(OrderStatus.PARTIALLY_FILLED.value))
+
+
+def _reserves(order: Order) -> bool:
+    """Whether this order ring-fenced cash or shares when it was placed.
+
+    Anything that waits -- a limit order, or a market order serving out a
+    settlement delay -- must, so the same dollar cannot back two orders.
+    """
+    return order.order_type == str(OrderType.LIMIT.value) or order.execute_after is not None
+
+
+def _is_due(order: Order, now: datetime) -> bool:
+    return order.execute_after is None or order.execute_after <= now
 
 
 @dataclass(slots=True)
@@ -121,6 +134,10 @@ class TradingService:
 
         async with self.db.write_session() as session:
             portfolio = await self._locked_portfolio(session, user_id)
+            delay = max(0.0, self.settings.order_delay_seconds)
+            execute_after = (
+                datetime.now(timezone.utc) + timedelta(seconds=delay) if delay else None
+            )
             order = Order(
                 public_id=public_id(),
                 user_id=user_id,
@@ -130,6 +147,7 @@ class TradingService:
                 quantity=request.quantity,
                 limit_price_cents=request.limit_price_cents,
                 status=str(OrderStatus.PENDING.value),
+                execute_after=execute_after,
             )
 
             if request.side is OrderSide.BUY:
@@ -141,7 +159,11 @@ class TradingService:
             await session.flush()
 
             fills: list[Trade] = []
-            if request.order_type is OrderType.MARKET:
+            if execute_after is not None:
+                # Settling. The tick loop fills it at the price prevailing
+                # once the delay is up, so news cannot be front-run.
+                pass
+            elif request.order_type is OrderType.MARKET:
                 fills = await self._execute_market(session, portfolio, order, request)
             else:
                 # A limit order that is already marketable fills straight away,
@@ -162,10 +184,11 @@ class TradingService:
         """Reserve the cash a buy could possibly need."""
         if request.order_type is OrderType.MARKET:
             # Reserve at the quoted price plus headroom, because the price can
-            # move between authorisation and fill.
+            # move between authorisation and fill -- further if it has to
+            # survive a settlement delay.
             quote = self.venue.quote(request.symbol, OrderSide.BUY, request.quantity)
             required = quote * request.quantity + self.commission_cents
-            buffer = int(required * 0.01)
+            buffer = int(required * (0.05 if order.execute_after else 0.01))
         else:
             assert request.limit_price_cents is not None
             required = request.limit_price_cents * request.quantity + self.commission_cents
@@ -177,9 +200,10 @@ class TradingService:
                 f"${(required + buffer) / 100:,.2f} but you have "
                 f"${portfolio.cash_cents / 100:,.2f}."
             )
-        if request.order_type is OrderType.LIMIT:
-            portfolio.cash_cents -= required
-            order.reserved_cash_cents = required
+        if _reserves(order):
+            reserve = required + buffer
+            portfolio.cash_cents -= reserve
+            order.reserved_cash_cents = reserve
 
     async def _authorise_sell(
         self, session, portfolio: Portfolio, order: Order, request: OrderRequest
@@ -197,7 +221,7 @@ class TradingService:
                 f"You have {available:,} share(s) of {request.symbol} available to sell "
                 f"but tried to sell {request.quantity:,}."
             )
-        if request.order_type is OrderType.LIMIT:
+        if _reserves(order):
             holding.reserved_quantity += request.quantity
 
     async def _locked_portfolio(self, session, user_id: int) -> Portfolio:
@@ -257,7 +281,7 @@ class TradingService:
         if quantity <= 0:
             return None
         side = OrderSide(order.side)
-        is_limit = order.order_type == str(OrderType.LIMIT.value)
+        reserved = _reserves(order)
         gross = quantity * price_cents
         commission = self.commission_cents if order.filled_quantity == 0 else 0
         realized = 0
@@ -269,7 +293,7 @@ class TradingService:
         )
 
         if side is OrderSide.BUY:
-            if is_limit:
+            if reserved:
                 # Spend from the reservation; hand back anything unused.
                 reserved_per_share = order.reserved_cash_cents // max(order.quantity, 1)
                 release = reserved_per_share * quantity
@@ -302,7 +326,7 @@ class TradingService:
             realized = gross - cost_out - commission
             holding.quantity -= quantity
             holding.cost_basis_cents -= cost_out
-            if is_limit:
+            if reserved:
                 holding.reserved_quantity = max(0, holding.reserved_quantity - quantity)
             holding.updated_at = datetime.now(timezone.utc)
             portfolio.cash_cents += gross - commission
@@ -370,6 +394,7 @@ class TradingService:
             return []
 
         prices = self.engine.prices()
+        now = datetime.now(timezone.utc)
         crossable: list[int] = []
         async with self.db.session() as session:
             open_orders = (
@@ -380,9 +405,12 @@ class TradingService:
             for order in open_orders:
                 symbol = self._symbol_of(order.stock_id)
                 price = prices.get(symbol)
-                if price is None or order.limit_price_cents is None:
+                if price is None or not _is_due(order, now):
                     continue
-                if order.side == str(OrderSide.BUY.value):
+                if order.limit_price_cents is None:
+                    # A market order that has finished settling.
+                    crossable.append(order.id)
+                elif order.side == str(OrderSide.BUY.value):
                     if price <= order.limit_price_cents:
                         crossable.append(order.id)
                 elif price >= order.limit_price_cents:
@@ -402,8 +430,13 @@ class TradingService:
                 )
                 if portfolio is None:
                     continue
-                fills = await self._try_fill_limit(session, portfolio, order)
-                if fills:
+                if order.limit_price_cents is None:
+                    fills = await self._fill_settled_market(session, portfolio, order)
+                else:
+                    fills = await self._try_fill_limit(session, portfolio, order)
+                # A settling order can also end rejected, which the player
+                # still needs to see.
+                if fills or order.status not in OPEN_STATUSES:
                     symbol = self._symbol_of(order.stock_id)
                     if order.status == str(OrderStatus.FILLED.value):
                         await self._release_remainder(session, portfolio, order)
@@ -418,6 +451,42 @@ class TradingService:
         for user_id, order_payload, trades in updates:
             await self._announce(user_id, order_payload, trades)
         return [order for _, order, _ in updates]
+
+    async def _fill_settled_market(
+        self, session, portfolio: Portfolio, order: Order
+    ) -> list[Trade]:
+        """Fill a market order whose settlement delay has elapsed.
+
+        It fills at the price now, not the price when it was placed -- that is
+        the whole point of the delay. The reservation was sized with headroom,
+        but a big move can still outrun it, so the fill is trimmed to what the
+        player can actually afford rather than overdrawing them.
+        """
+        symbol = self._symbol_of(order.stock_id)
+        side = OrderSide(order.side)
+        fill = self.venue.fill_market(symbol, side, order.remaining)
+        if fill is None:
+            return []
+
+        if side is OrderSide.BUY:
+            # Release the whole reservation before pricing the fill. The
+            # proportional release in _book_fill assumes the fill lands near
+            # the reserved price, which a settlement-window move can break;
+            # paying straight from cash keeps the arithmetic honest.
+            portfolio.cash_cents += order.reserved_cash_cents
+            order.reserved_cash_cents = 0
+            commission = self.commission_cents if order.filled_quantity == 0 else 0
+            affordable = max(0, (portfolio.cash_cents - commission) // fill.price_cents)
+            fill.quantity = min(fill.quantity, affordable)
+            if fill.quantity <= 0:
+                order.status = str(OrderStatus.REJECTED.value)
+                order.reject_reason = "Price moved beyond your buying power while settling."
+                order.updated_at = datetime.now(timezone.utc)
+                await self._release_remainder(session, portfolio, order)
+                return []
+
+        trade = await self._book_fill(session, portfolio, order, fill.quantity, fill.price_cents)
+        return [trade] if trade else []
 
     async def _release_remainder(self, session, portfolio: Portfolio, order: Order) -> None:
         """Return any over-reservation once an order is fully done."""
@@ -519,6 +588,7 @@ class TradingService:
             "reject_reason": order.reject_reason,
             "created_at": order.created_at.isoformat(),
             "updated_at": order.updated_at.isoformat() if order.updated_at else None,
+            "execute_after": order.execute_after.isoformat() if order.execute_after else None,
         }
 
     def _trade_payload(self, trade: Trade, symbol: str) -> dict[str, Any]:
