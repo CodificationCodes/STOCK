@@ -9,7 +9,7 @@ redraw the screen.
 from __future__ import annotations
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from rich.console import Group
@@ -30,6 +30,23 @@ from stockgame.client.theme import (
 )
 from stockgame.client.widgets.chart import scale_bar
 from stockgame.shared.money import fmt_money, fmt_pct
+
+
+def format_clock(raw: Any) -> str:
+    """``"14:07"`` in the player's own timezone. Empty if unknown.
+
+    Server timestamps are UTC ISO strings; everyone reads them on their own
+    wall clock, so a Sydney player and a London player see their own time.
+    """
+    if not isinstance(raw, str) or not raw:
+        return ""
+    try:
+        moment = datetime.fromisoformat(raw)
+    except ValueError:
+        return ""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return f"{moment.astimezone():%H:%M}"
 
 
 def format_reopen(raw: Any) -> str:
@@ -255,16 +272,18 @@ class TradeTapePanel(Static):
             self.update(Text("\n  waiting for the first trade...", style=TEXT_DIM))
             return
         table = Table.grid(padding=(0, 1))
-        table.add_column(width=12)
+        table.add_column(width=5)
+        table.add_column(width=11)
         table.add_column(width=4)
         table.add_column(width=6)
-        table.add_column(width=8, justify="right")
-        table.add_column(width=10, justify="right")
+        table.add_column(width=7, justify="right")
+        table.add_column(width=9, justify="right")
         for print_ in list(state.tape)[-14:][::-1]:
             is_buy = print_["side"] == "buy"
             table.add_row(
+                Text(format_clock(print_.get("at")), style=TEXT_DIM),
                 Text(
-                    print_["username"][:12],
+                    print_["username"][:11],
                     style=ACCENT if print_["username"] == state.username else TEXT,
                 ),
                 Text("BUY" if is_buy else "SELL", style=UP if is_buy else DOWN),
@@ -292,11 +311,12 @@ class NewsPanel(Static):
             style = UP if impact > 0 else (DOWN if impact < 0 else NEUTRAL)
             headline = Text(no_wrap=True, overflow="ellipsis")
             tag = item.get("symbol") or item.get("sector") or "MARKET"
+            headline.append(f"{format_clock(item.get('at')):<6}", style=TEXT_DIM)
             headline.append(f"{tag:<12}", style=ACCENT)
             headline.append(f"{impact:+.1f}%  ", style=style)
             headline.append(item["headline"], style="bold white")
             body = Text(
-                f"            {item.get('body', '')}",
+                f"                  {item.get('body', '')}",
                 style=TEXT_DIM,
                 no_wrap=True,
                 overflow="ellipsis",

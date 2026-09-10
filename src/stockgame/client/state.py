@@ -52,6 +52,33 @@ class ClientState:
         if payload.get("status"):
             self.market_status = payload["status"]
 
+    def recompute_sectors(self) -> None:
+        """Re-derive sector heat from the rows we hold.
+
+        The server only sends the sector table with a full snapshot, so
+        without this it would sit frozen at whatever it was when the client
+        connected while every price underneath it moved.
+        """
+        buckets: dict[str, list[float]] = {}
+        for row in self.stocks.values():
+            sector = row.get("sector")
+            if sector:
+                buckets.setdefault(sector, []).append(row.get("change_pct", 0.0))
+        if not buckets:
+            return
+        self.sectors = sorted(
+            (
+                {
+                    "sector": sector,
+                    "change_pct": round(sum(values) / len(values), 3),
+                    "count": len(values),
+                }
+                for sector, values in buckets.items()
+            ),
+            key=lambda row: row["change_pct"],
+            reverse=True,
+        )
+
     def apply_price_update(self, payload: dict[str, Any]) -> None:
         """Merge a compact tick array into the full rows we already hold."""
         for tick in payload.get("ticks", []):
@@ -81,6 +108,7 @@ class ClientState:
             self.market_status["index_change_pct"] = payload.get("index_change_pct", 0.0)
         if payload.get("regime"):
             self.market_status["regime"] = payload["regime"]
+        self.recompute_sectors()
 
     def price_of(self, symbol: str) -> int:
         row = self.stocks.get(symbol)

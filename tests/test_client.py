@@ -421,3 +421,69 @@ class TestCLI:
 
         assert build_parser().parse_args(["player", "alice"]).username == "alice"
         assert build_parser().parse_args(["trades", "--limit", "5"]).limit == 5
+
+
+class TestSectorHeat:
+    """The sector panel used to freeze at whatever it was on connect: the
+    server only sends the table with a full snapshot, and the client never
+    recomputed it from the prices that do keep arriving."""
+
+    def _state(self):
+        state = ClientState()
+        state.apply_market_snapshot(
+            {
+                "stocks": [
+                    {"symbol": "AAA", "sector": "Technology", "change_pct": 0.0},
+                    {"symbol": "BBB", "sector": "Technology", "change_pct": 0.0},
+                    {"symbol": "CCC", "sector": "Mining", "change_pct": 0.0},
+                ],
+                "sectors": [],
+            }
+        )
+        return state
+
+    def test_a_price_tick_refreshes_sector_heat(self):
+        state = self._state()
+        state.apply_price_update(
+            {"ticks": [{"s": "AAA", "p": 100, "c": 6.0, "v": 1, "h": 100, "l": 100}]}
+        )
+
+        by_sector = {row["sector"]: row for row in state.sectors}
+        assert by_sector["Technology"]["change_pct"] == 3.0  # (6.0 + 0.0) / 2
+        assert by_sector["Mining"]["change_pct"] == 0.0
+
+    def test_sectors_are_ranked_best_first(self):
+        state = self._state()
+        state.apply_price_update(
+            {"ticks": [{"s": "CCC", "p": 100, "c": 9.0, "v": 1, "h": 100, "l": 100}]}
+        )
+
+        assert [row["sector"] for row in state.sectors] == ["Mining", "Technology"]
+
+    def test_each_sector_reports_its_size(self):
+        state = self._state()
+        state.apply_price_update({"ticks": []})
+
+        counts = {row["sector"]: row["count"] for row in state.sectors}
+        assert counts == {"Technology": 2, "Mining": 1}
+
+
+class TestLocalTimeFormatting:
+    def test_utc_timestamps_render_in_local_time(self):
+        from datetime import datetime, timedelta, timezone
+
+        from stockgame.client.widgets.panels import format_clock
+
+        moment = datetime.now(timezone.utc) - timedelta(minutes=1)
+        assert format_clock(moment.isoformat()) == f"{moment.astimezone():%H:%M}"
+
+    def test_a_naive_timestamp_is_read_as_utc(self):
+        from stockgame.client.widgets.panels import format_clock
+
+        assert format_clock("2026-09-10T04:30:00") == format_clock("2026-09-10T04:30:00+00:00")
+
+    @pytest.mark.parametrize("raw", [None, "", "not-a-date", 42])
+    def test_bad_input_renders_nothing(self, raw):
+        from stockgame.client.widgets.panels import format_clock
+
+        assert format_clock(raw) == ""

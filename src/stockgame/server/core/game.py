@@ -18,6 +18,7 @@ import contextlib
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from stockgame.server.config import Settings
@@ -148,11 +149,13 @@ class GameServer:
 
         if result.regime_changed or result.day_rolled is not None or result.status_changed:
             await self.bus.publish(Event(Topics.MARKET_STATUS, self.engine.market_status()))
+        published_at = datetime.now(timezone.utc).isoformat()
         for item in result.news:
             await self.bus.publish(
                 Event(
                     Topics.NEWS_PUBLISHED,
                     {
+                        "at": published_at,
                         "scope": str(item.scope.value),
                         "sentiment": str(item.sentiment.value),
                         "headline": item.headline,

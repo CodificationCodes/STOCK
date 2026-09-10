@@ -52,6 +52,9 @@ class KeyedTable(DataTable):
         self._row_keys: set[str] = set()
         #: Last rendered cells per row, so unchanged cells are never re-sent.
         self._cache: dict[str, list[Any]] = {}
+        #: Row order as last rendered. DataTable cannot move a row, so a
+        #: different order is the one case that forces a rebuild.
+        self._order: list[str] = []
 
     def setup(self, columns: list[tuple[str, str, int]]) -> None:
         """``columns`` is a list of ``(key, label, width)``."""
@@ -60,30 +63,48 @@ class KeyedTable(DataTable):
             self.add_column(Text(label, style=NEUTRAL), key=key, width=width)
 
     def sync(self, rows: list[tuple[str, list[Any]]]) -> None:
-        """Add, update and remove rows so the table matches ``rows`` exactly."""
-        wanted = {key for key, _ in rows}
-        for stale in self._row_keys - wanted:
-            with contextlib.suppress(Exception):  # the row may already be gone
-                self.remove_row(stale)
-            self._cache.pop(stale, None)
-        self._row_keys &= wanted
+        """Update the table so it matches ``rows`` exactly.
+
+        Any change to the set or order of rows goes through a rebuild, since
+        a DataTable row cannot be moved. When the order holds, only the cells
+        that actually changed are re-sent.
+        """
+        if [key for key, _ in rows] != self._order:
+            self._rebuild(rows)
+            return
 
         for key, cells in rows:
-            if key in self._row_keys:
-                # Most cells (symbol, company, sector) never change. Diffing
-                # here turns a 47x7 table refresh into a handful of updates,
-                # which is the difference between a smooth tick and a stutter.
-                previous = self._cache.get(key)
-                for index, (column_key, value) in enumerate(
-                    zip(self._column_keys, cells, strict=False)
-                ):
-                    if previous is not None and index < len(previous) and previous[index] == value:
-                        continue
-                    self.update_cell(key, column_key, value, update_width=False)
-            else:
-                self.add_row(*cells, key=key)
-                self._row_keys.add(key)
+            # Most cells (symbol, company, sector) never change. Diffing here
+            # turns a 47x7 table refresh into a handful of updates, which is
+            # the difference between a smooth tick and a stutter.
+            previous = self._cache.get(key)
+            for index, (column_key, value) in enumerate(
+                zip(self._column_keys, cells, strict=False)
+            ):
+                if previous is not None and index < len(previous) and previous[index] == value:
+                    continue
+                self.update_cell(key, column_key, value, update_width=False)
             self._cache[key] = list(cells)
+
+    def _rebuild(self, rows: list[tuple[str, list[Any]]]) -> None:
+        """Redraw every row, keeping the cursor on whatever it was pointing at.
+
+        Only reached when the order changed -- a re-sort, or rows appearing or
+        disappearing mid-table. Sorting by a live column (gainers, volume)
+        reorders on most ticks, which is why the cursor has to be restored.
+        """
+        selected = self.selected_key()
+        self.clear()
+        self._row_keys.clear()
+        self._cache.clear()
+        self._order = [key for key, _ in rows]
+        for key, cells in rows:
+            self.add_row(*cells, key=key)
+            self._row_keys.add(key)
+            self._cache[key] = list(cells)
+        if selected is not None and selected in self._row_keys:
+            with contextlib.suppress(Exception):
+                self.move_cursor(row=self._order.index(selected))
 
     def selected_key(self) -> str | None:
         if self.cursor_row < 0 or not self.row_count:
