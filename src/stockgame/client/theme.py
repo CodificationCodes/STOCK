@@ -259,6 +259,17 @@ ConfirmDialog {{ align: center middle; }}
     padding: 1 2;
 }}
 
+PlayerDialog {{ align: center middle; }}
+
+#player-card {{
+    width: 66;
+    height: auto;
+    max-height: 90%;
+    background: {PANEL};
+    border: round {ACCENT};
+    padding: 1 2;
+}}
+
 /* ------------------------------------------------------------------ misc */
 Tooltip {{
     background: {PANEL_ALT};

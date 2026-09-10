@@ -287,7 +287,7 @@ HELP_SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
             ("N", "News feed"),
             ("U", "Your profile"),
             ("Tab / ↑ ↓", "Move between rows"),
-            ("Enter", "Open the selected symbol"),
+            ("Enter", "Open the selected symbol, or a rival's book in LEAGUE"),
             ("Esc", "Back / close"),
         ),
     ),
@@ -361,6 +361,74 @@ class HelpDialog(ModalScreen[None]):
                     style=TEXT_DIM,
                 )
             )
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
+class PlayerDialog(ModalScreen[None]):
+    """Another player's book, opened with Enter from the leaderboard.
+
+    The server decides what a rival may see: position sizes and returns, but
+    never cash or cost basis. This just renders whatever came back.
+    """
+
+    BINDINGS = [
+        Binding("escape", "close", "Close"),
+        Binding("q", "close", "Close", show=False),
+        Binding("enter", "close", "Close", show=False),
+    ]
+
+    def __init__(self, profile: dict[str, Any]) -> None:
+        super().__init__()
+        self.profile = profile
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="player-card"):
+            yield Static(self._header())
+            yield Static(self._positions())
+            yield Static(Text("\n  Esc to close", style=TEXT_DIM))
+
+    def _header(self) -> Text:
+        profile = self.profile
+        header = Text()
+        header.append(f"{profile.get('username', '?')}\n", style=f"bold {ACCENT}")
+        value = profile.get("total_value_cents", 0)
+        pl = profile.get("total_pl_cents", 0)
+        header.append("  VALUE ", style=TEXT_DIM)
+        header.append(f"{fmt_money(value)}", style="bold white")
+        header.append("   P/L ", style=TEXT_DIM)
+        header.append(fmt_money(pl, sign=True), style=UP if pl >= 0 else DOWN)
+        header.append("   RETURN ", style=TEXT_DIM)
+        ret = profile.get("total_return_pct", 0.0)
+        header.append(f"{ret:+.2f}%", style=UP if ret >= 0 else DOWN)
+        header.append(f"\n  {profile.get('total_trades', 0)} trades", style=TEXT_DIM)
+        return header
+
+    def _positions(self) -> Any:
+        positions = self.profile.get("positions") or []
+        if not positions:
+            return Text("\n  Holding nothing but cash.\n", style=TEXT_DIM)
+        table = Table.grid(padding=(0, 2))
+        table.add_column(width=8)
+        table.add_column(width=10, justify="right")
+        table.add_column(width=14, justify="right")
+        table.add_column(width=10, justify="right")
+        table.add_row(
+            Text("SYMBOL", style=NEUTRAL),
+            Text("SHARES", style=NEUTRAL),
+            Text("VALUE", style=NEUTRAL),
+            Text("RETURN", style=NEUTRAL),
+        )
+        for row in positions:
+            ret = row.get("return_pct", 0.0)
+            table.add_row(
+                Text(row["symbol"], style="bold white"),
+                Text(f"{row['quantity']:,}", style=TEXT),
+                Text(fmt_money(row["market_value_cents"]), style="bold white"),
+                Text(f"{ret:+.2f}%", style=UP if ret >= 0 else DOWN),
+            )
+        return table
 
     def action_close(self) -> None:
         self.dismiss(None)

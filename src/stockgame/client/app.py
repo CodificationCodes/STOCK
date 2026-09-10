@@ -18,7 +18,12 @@ from textual.binding import Binding
 from stockgame.client.config import ClientConfig, normalise_server
 from stockgame.client.screens.auth import NewAccountScreen, WelcomeScreen
 from stockgame.client.screens.dashboard import DashboardScreen
-from stockgame.client.screens.dialogs import ConfirmDialog, HelpDialog, TradeDialog
+from stockgame.client.screens.dialogs import (
+    ConfirmDialog,
+    HelpDialog,
+    PlayerDialog,
+    TradeDialog,
+)
 from stockgame.client.state import ClientState
 from stockgame.client.theme import APP_CSS
 from stockgame.client.transport import Account, AuthClient, ClientError, GameConnection
@@ -290,6 +295,19 @@ class StockGameApp(App):
         if dashboard:
             dashboard.action_show("stock")
         self.load_symbol(symbol)
+
+    @work(group="player")
+    async def open_player(self, username: str) -> None:
+        """Show a rival's book. The server decides what is visible."""
+        connection = self.connection
+        if connection is None:
+            return
+        try:
+            profile = await connection.request(ClientMessage.GET_PROFILE, {"username": username})
+        except ClientError as exc:
+            self.notify(str(exc), severity="warning")
+            return
+        self.push_screen(PlayerDialog(profile))
 
     @work(exclusive=True, group="symbol")
     async def load_symbol(self, symbol: str) -> None:

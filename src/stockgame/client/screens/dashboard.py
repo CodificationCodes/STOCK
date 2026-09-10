@@ -188,9 +188,26 @@ class DashboardScreen(Screen):
             self.action_show(self._previous_view if self._previous_view != "stock" else "market")
 
     def action_open_selected(self) -> None:
+        if self.active_view == "leaderboard":
+            username = self.selected_player()
+            if username:
+                self.app.open_player(username)
+            return
         symbol = self.selected_symbol()
         if symbol:
             self.app.open_symbol(symbol)
+
+    def selected_player(self) -> str | None:
+        """The leaderboard row under the cursor. Keys are ``period:username``."""
+        try:
+            from stockgame.client.screens.views import KeyedTable
+
+            key = self.query_one("#leaderboard-table", KeyedTable).selected_key()
+        except Exception:
+            return None
+        if not key or ":" not in key:
+            return None
+        return key.split(":", 1)[1]
 
     def selected_symbol(self) -> str | None:
         """Whatever symbol the current view considers selected."""

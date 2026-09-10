@@ -182,6 +182,19 @@ class TestProfiles:
         assert profile["total_trades"] == 2
         assert profile["is_self"] is True
 
+    async def test_a_rival_can_see_what_you_hold(self, game, player, rival, buy):
+        """Enter on a leaderboard row opens this payload, so it has to carry
+        the positions and the headline numbers the dialog renders."""
+        await buy(player["user_id"], "ACME", 25)
+
+        profile = await game.portfolios.get_profile("alice", viewer_id=rival["user_id"])
+
+        held = {row["symbol"]: row for row in profile["positions"]}
+        assert held["ACME"]["quantity"] == 25
+        assert held["ACME"]["market_value_cents"] > 0
+        for key in ("total_value_cents", "total_pl_cents", "total_return_pct", "total_trades"):
+            assert key in profile
+
     async def test_unknown_player(self, game, player):
         from stockgame.server.core.errors import NotFoundError
 
