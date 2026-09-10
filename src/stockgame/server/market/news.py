@@ -402,6 +402,7 @@ MARKET_NEWS: tuple[NewsTemplate, ...] = (
     ),
 )
 
+
 def _split(templates: Sequence[NewsTemplate], positive: bool) -> tuple[NewsTemplate, ...]:
     return tuple(t for t in templates if (t.sentiment is NewsSentiment.POSITIVE) is positive)
 

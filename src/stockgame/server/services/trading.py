@@ -135,9 +135,7 @@ class TradingService:
         async with self.db.write_session() as session:
             portfolio = await self._locked_portfolio(session, user_id)
             delay = max(0.0, self.settings.order_delay_seconds)
-            execute_after = (
-                datetime.now(timezone.utc) + timedelta(seconds=delay) if delay else None
-            )
+            execute_after = datetime.now(timezone.utc) + timedelta(seconds=delay) if delay else None
             order = Order(
                 public_id=public_id(),
                 user_id=user_id,

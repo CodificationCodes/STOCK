@@ -10,11 +10,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import select
 
 from stockgame.server.db.models import Order, Portfolio
 from stockgame.server.services.trading import OrderRequest
 from stockgame.shared.enums import OrderStatus
-from sqlalchemy import select
 
 UTC = timezone.utc
 
