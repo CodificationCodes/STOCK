@@ -55,6 +55,7 @@ SUBSCRIBABLE = {
     Channel.NEWS,
     Channel.TAPE,
     Channel.STATUS,
+    Channel.CHAT,
 }
 
 
@@ -67,6 +68,7 @@ class WebSocketGateway:
         game.bus.subscribe(Topics.TRADE_EXECUTED, self._on_trade_executed)
         game.bus.subscribe(Topics.PORTFOLIO_CHANGED, self._on_portfolio_changed)
         game.bus.subscribe(Topics.TAPE_PRINTED, self._on_tape)
+        game.bus.subscribe(Topics.CHAT_POSTED, self._on_chat)
         game.bus.subscribe(Topics.NEWS_PUBLISHED, self._on_news)
         game.bus.subscribe(Topics.LEADERBOARD_UPDATED, self._on_leaderboard)
         game.bus.subscribe(Topics.MARKET_STATUS, self._on_market_status)
@@ -306,6 +308,9 @@ class WebSocketGateway:
             prints = await self.game.market_data.recent_tape(25)
             for item in prints:
                 connection.send_soon(encode(ServerMessage.TAPE, item))
+        elif channel is Channel.CHAT:
+            for item in await self.game.chat.recent(40):
+                connection.send_soon(encode(ServerMessage.CHAT, item))
         elif channel is Channel.STATUS:
             connection.send_soon(
                 encode(
@@ -388,6 +393,23 @@ class WebSocketGateway:
         payload = self.game.leaderboard.payload(limit=int(data.get("limit") or 50))
         payload["your_rank"] = self.game.leaderboard.rank_of(connection.user_id)
         connection.send_soon(encode(ServerMessage.LEADERBOARD, payload, ref=ref))
+
+    async def _handle_send_chat(
+        self, connection: Connection, data: dict[str, Any], ref: str | None
+    ) -> None:
+        limit = self.game.chat_limiter.check(f"user:{connection.user_id}")
+        if not limit.allowed:
+            await self._error(
+                connection,
+                ErrorCode.RATE_LIMITED,
+                f"Slow down. Try again in {limit.retry_after:.0f}s.",
+                ref,
+            )
+            return
+        # The service broadcasts on the bus; every subscriber, including the
+        # sender, gets the line the same way. The ack is just the ref.
+        await self.game.chat.post(connection.user_id, connection.username, data.get("body"))
+        connection.send_soon(encode(ServerMessage.OK, {}, ref=ref))
 
     async def _handle_get_tips(
         self, connection: Connection, data: dict[str, Any], ref: str | None
@@ -533,6 +555,9 @@ class WebSocketGateway:
         for connection in self.hub.connections_for(event.user_id):
             await self._push_portfolio(connection, force=True)
 
+    async def _on_chat(self, event: Event) -> None:
+        self.hub.send_to_channel(Channel.CHAT.key(), encode(ServerMessage.CHAT, event.payload))
+
     async def _on_tape(self, event: Event) -> None:
         self.hub.send_to_channel(Channel.TAPE.key(), encode(ServerMessage.TAPE, event.payload))
 
@@ -607,6 +632,7 @@ _HANDLERS = {
     ClientMessage.GET_NEWS.value: WebSocketGateway._handle_get_news,
     ClientMessage.GET_WATCHLIST.value: WebSocketGateway._handle_get_watchlist,
     ClientMessage.GET_TIPS.value: WebSocketGateway._handle_get_tips,
+    ClientMessage.SEND_CHAT.value: WebSocketGateway._handle_send_chat,
     ClientMessage.BUY_TIP.value: WebSocketGateway._handle_buy_tip,
     ClientMessage.WATCHLIST_ADD.value: WebSocketGateway._handle_watchlist_add,
     ClientMessage.WATCHLIST_REMOVE.value: WebSocketGateway._handle_watchlist_remove,

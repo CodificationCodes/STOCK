@@ -64,6 +64,7 @@ class Topics:
     ORDER_UPDATED = "order.updated"
     PORTFOLIO_CHANGED = "portfolio.changed"
     NEWS_PUBLISHED = "news.published"
+    CHAT_POSTED = "chat.posted"
     LEADERBOARD_UPDATED = "leaderboard.updated"
     MARKET_STATUS = "market.status"
     ACHIEVEMENT_UNLOCKED = "achievement.unlocked"

@@ -325,6 +325,28 @@ class NewsPanel(Static):
         self.update(Group(*blocks))
 
 
+class ChatPanel(Static):
+    """The room. Newest at the bottom, like every chat ever made."""
+
+    def __init__(self, limit: int = 8, **kwargs: Any) -> None:
+        super().__init__("", **kwargs)
+        self.limit = limit
+
+    def render_state(self, state) -> None:
+        if not state.chat:
+            self.update(Text("\n  nobody has said anything yet", style=TEXT_DIM))
+            return
+        lines = []
+        for item in list(state.chat)[-self.limit :]:
+            line = Text(no_wrap=True, overflow="ellipsis")
+            line.append(f"{format_clock(item.get('at')):<6}", style=TEXT_DIM)
+            is_you = item.get("username") == state.username
+            line.append(f"{item.get('username', '?')[:11]:<12}", style=ACCENT if is_you else INFO)
+            line.append(item.get("body", ""), style=TEXT)
+            lines.append(line)
+        self.update(Group(*lines))
+
+
 class ClockMixin:
     """Formats the wall-clock time for the header."""
 

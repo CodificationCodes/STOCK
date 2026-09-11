@@ -336,6 +336,7 @@ before touching the move range.
 | `STOCKGAME_TICKS_PER_CANDLE` | 1D chart resolution | Higher = fewer rows written |
 | `STOCKGAME_LEADERBOARD_INTERVAL_SECONDS` | Ranking refresh | Raise it if you have hundreds of players |
 | `STOCKGAME_MAX_CONNECTIONS_PER_USER` | Sockets per account | Lower to 2 if abused |
+| `STOCKGAME_CHAT_RATE_LIMIT` | Chat lines per 10s window | Lower if someone floods the room |
 | `STOCKGAME_ARGON2_MEMORY_COST` | Password hashing cost | Lower only on very small hosts; it is your main defence on a leak |
 
 Intraday candles are pruned after two simulated days; end-of-day candles are kept

@@ -447,3 +447,21 @@ class InsiderTip(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, nullable=False)
 
     stock: Mapped[Stock] = relationship(lazy="joined")
+
+
+class ChatMessage(Base):
+    """One line in the global chat. Username is copied in so the history
+    replay does not need a join, and a renamed or deleted account keeps
+    its old lines attributed as they were said."""
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    username: Mapped[str] = mapped_column(String(20), nullable=False)
+    body: Mapped[str] = mapped_column(String(240), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utcnow, nullable=False, index=True
+    )

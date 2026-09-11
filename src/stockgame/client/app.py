@@ -34,7 +34,7 @@ from stockgame.shared.protocol import ClientMessage, ServerMessage
 log = logging.getLogger("stockgame.app")
 
 #: Channels the client always wants.
-BASE_CHANNELS = ("market", "portfolio", "news", "tape", "status", "leaderboard")
+BASE_CHANNELS = ("market", "portfolio", "news", "tape", "status", "leaderboard", "chat")
 
 
 class StockGameApp(App):
@@ -126,6 +126,7 @@ class StockGameApp(App):
         connection.on(ServerMessage.NEWS, self._on_news_batch)
         connection.on(ServerMessage.NEWS_ITEM, self._on_news_item)
         connection.on(ServerMessage.TAPE, self._on_tape)
+        connection.on(ServerMessage.CHAT, self._on_chat)
         connection.on(ServerMessage.TRADE_EXECUTED, self._on_trade_executed)
         connection.on(ServerMessage.ORDER_UPDATE, self._on_order_update)
         connection.on(ServerMessage.ORDERS, self._on_orders)
@@ -232,6 +233,10 @@ class StockGameApp(App):
 
     def _on_tape(self, data: dict[str, Any]) -> None:
         self.state.tape.append(data)
+        self._refresh("market")
+
+    def _on_chat(self, data: dict[str, Any]) -> None:
+        self.state.chat.append(data)
         self._refresh("market")
 
     def _on_trade_executed(self, data: dict[str, Any]) -> None:
@@ -433,6 +438,18 @@ class StockGameApp(App):
         except ClientError as exc:
             self.notify(exc.message, severity="error")
         self.fetch_orders()
+
+    @work(group="chat")
+    async def send_chat(self, body: str) -> None:
+        """Post to the room. The line comes back over the chat channel like
+        everyone else's, so there is nothing to append here."""
+        connection = self.connection
+        if connection is None or not body.strip():
+            return
+        try:
+            await connection.request(ClientMessage.SEND_CHAT, {"body": body})
+        except ClientError as exc:
+            self.notify(exc.message, severity="warning")
 
     @work(group="watchlist")
     async def watchlist_add(self, symbol: str) -> None:

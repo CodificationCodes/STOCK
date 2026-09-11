@@ -19,7 +19,7 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import ContentSwitcher, DataTable
+from textual.widgets import ContentSwitcher, DataTable, Input
 
 from stockgame.client.screens.views import (
     LeaderboardView,
@@ -68,6 +68,7 @@ class DashboardScreen(Screen):
         Binding("c", "cancel_order", "Cancel", show=False),
         Binding("f", "cycle_sort", "Sort", show=False),
         Binding("i", "insider", "Insider desk", show=False),
+        Binding("slash", "focus_chat", "Chat", show=False),
         Binding("g", "cycle_board", "Board", show=False),
         Binding("v", "toggle_chart", "Chart", show=False),
         Binding("r", "refresh_all", "Refresh", show=False),
@@ -184,11 +185,38 @@ class DashboardScreen(Screen):
         if table is not None:
             table.focus()
 
+    def _chat_input(self) -> Input | None:
+        try:
+            return self.query_one("#market-chat-input", Input)
+        except Exception:
+            return None
+
+    def action_focus_chat(self) -> None:
+        if self.active_view != "market":
+            self.action_show("market")
+        chat = self._chat_input()
+        if chat is not None:
+            chat.focus()
+
     def action_back(self) -> None:
+        chat = self._chat_input()
+        if chat is not None and chat.has_focus:
+            # Hand the keyboard back to navigation.
+            self._focus_table("market")
+            return
         if self.active_view == "stock":
             self.action_show(self._previous_view if self._previous_view != "stock" else "market")
 
     def action_open_selected(self) -> None:
+        # Enter is a priority binding, so it reaches us before the chat box
+        # would see it. Route it there when that is what the player is doing.
+        chat = self._chat_input()
+        if chat is not None and chat.has_focus:
+            body = chat.value.strip()
+            chat.value = ""
+            if body:
+                self.app.send_chat(body)
+            return
         if self.active_view == "leaderboard":
             username = self.selected_player()
             if username:

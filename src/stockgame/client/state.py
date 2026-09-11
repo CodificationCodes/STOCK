@@ -37,6 +37,7 @@ class ClientState:
 
     news: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=200))
     tape: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=60))
+    chat: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=200))
 
     selected_symbol: str = "ACME"
     timeframe: str = "1D"

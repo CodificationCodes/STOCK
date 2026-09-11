@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     order_rate_limit: int = 30
     order_rate_window_seconds: int = 10
     max_connections_per_user: int = 5
+    #: Chat lines per window, per player. Enough to talk, not enough to flood.
+    chat_rate_limit: int = 8
+    chat_rate_window_seconds: int = 10
 
     # -- Simulation ----------------------------------------------------------
     starting_cash: float = 100_000.0

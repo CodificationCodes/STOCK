@@ -115,6 +115,12 @@ cd STOCK
 Your account lives on the server, not on your machine, so nothing in your
 portfolio is affected by any of this.
 
+## Chat
+
+There is one room and everyone is in it, under the headlines on the Market
+screen. Press `/` to start typing, Enter to send, Esc to hand the keyboard
+back to the game. The last forty lines are replayed when you connect.
+
 ## The insider desk
 
 Press `I` to buy a rumour. It names one stock and advertises a move; a bigger
@@ -136,6 +142,7 @@ build a position.
 | `W` | Watchlist | | `O` | Orders & history |
 | `L` | Leaderboard | | `N` | News |
 | `I` | Insider desk | | `F` | Re-sort the market |
+| `/` | Chat | | | |
 | `U` | Profile | | `?` | Help |
 | `Q` | Quit | | `Esc` | Back |
 

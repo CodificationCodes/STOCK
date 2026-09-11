@@ -289,6 +289,7 @@ HELP_SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
             ("Tab / up down", "Move between rows"),
             ("Enter", "Open symbol / player"),
             ("Esc", "Back / close"),
+            ("/", "Chat"),
         ),
     ),
     (

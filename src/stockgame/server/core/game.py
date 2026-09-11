@@ -28,6 +28,7 @@ from stockgame.server.db.session import Database
 from stockgame.server.market.engine import MarketEngine
 from stockgame.server.services.achievements import AchievementService
 from stockgame.server.services.auth import AuthService
+from stockgame.server.services.chat import ChatService
 from stockgame.server.services.insider import InsiderService
 from stockgame.server.services.leaderboard import LeaderboardService
 from stockgame.server.services.market_data import MarketDataService
@@ -55,9 +56,11 @@ class GameServer:
         self.leaderboard = LeaderboardService(self.db, settings, self.portfolios, self.bus)
         self.achievements = AchievementService(self.db, self.bus)
         self.insider = InsiderService(self.db, settings, self.engine)
+        self.chat = ChatService(self.db, self.bus)
         self.market_data = MarketDataService(self.db, self.engine)
 
         self.auth_limiter = RateLimiter(settings.auth_rate_limit, settings.auth_rate_window_seconds)
+        self.chat_limiter = RateLimiter(settings.chat_rate_limit, settings.chat_rate_window_seconds)
         self.order_limiter = RateLimiter(
             settings.order_rate_limit, settings.order_rate_window_seconds
         )

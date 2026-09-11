@@ -16,7 +16,7 @@ from rich.table import Table
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
-from textual.widgets import DataTable, Static
+from textual.widgets import DataTable, Input, Static
 
 from stockgame.client.theme import (
     ACCENT,
@@ -37,7 +37,7 @@ from stockgame.client.widgets.chart import (
     heat_style,
     scale_bar,
 )
-from stockgame.client.widgets.panels import NewsPanel, SectorPanel, TradeTapePanel
+from stockgame.client.widgets.panels import ChatPanel, NewsPanel, SectorPanel, TradeTapePanel
 from stockgame.shared.money import fmt_money, fmt_pct
 
 TIMEFRAMES = ("1D", "1W", "1M", "3M", "1Y")
@@ -147,6 +147,9 @@ class MarketView(Container):
                 yield TradeTapePanel(id="market-tape", classes="panel")
                 yield Static(Text(" HEADLINES", style=f"bold {ACCENT}"))
                 yield NewsPanel(limit=4, id="market-news", classes="panel")
+                yield Static(Text(" CHAT   / to type", style=f"bold {ACCENT}"))
+                yield ChatPanel(limit=8, id="market-chat", classes="panel")
+                yield Input(placeholder="say something...", id="market-chat-input")
 
     def on_mount(self) -> None:
         self.query_one("#market-table", KeyedTable).setup(
@@ -211,6 +214,7 @@ class MarketView(Container):
         self.query_one("#market-sectors", SectorPanel).render_state(state)
         self.query_one("#market-tape", TradeTapePanel).render_state(state)
         self.query_one("#market-news", NewsPanel).render_state(state)
+        self.query_one("#market-chat", ChatPanel).render_state(state)
 
 
 # ---------------------------------------------------------------------------

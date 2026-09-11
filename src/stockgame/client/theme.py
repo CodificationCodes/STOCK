@@ -192,6 +192,16 @@ DataTable > .datatable--hover {{
 #market-left {{ width: 2fr; }}
 #market-right {{ width: 1fr; min-width: 34; }}
 
+#market-chat {{ height: auto; min-height: 4; }}
+
+#market-chat-input {{
+    background: {PANEL_ALT};
+    border: tall {BORDER};
+    margin: 0 0 1 0;
+}}
+
+#market-chat-input:focus {{ border: tall {ACCENT}; }}
+
 #stock-chart {{ height: 1fr; min-height: 12; }}
 #stock-header {{ height: auto; padding: 0 1; }}
 #stock-timeframes {{ height: auto; padding: 0 1; }}

@@ -50,6 +50,8 @@ class Channel(StrEnum):
     TAPE = "tape"
     #: Market status changes: open/closed/halted, regime shifts, day rollover.
     STATUS = "status"
+    #: The one global chat room.
+    CHAT = "chat"
 
     @staticmethod
     def parse(raw: str) -> tuple[Channel, str | None]:
@@ -81,6 +83,7 @@ class ClientMessage(StrEnum):
     WATCHLIST_REMOVE = "watchlist_remove"
     GET_WATCHLIST = "get_watchlist"
     GET_TIPS = "get_tips"
+    SEND_CHAT = "send_chat"
     BUY_TIP = "buy_tip"
 
 
@@ -106,6 +109,7 @@ class ServerMessage(StrEnum):
     LEADERBOARD = "leaderboard"
     PROFILE = "profile"
     TIPS = "tips"
+    CHAT = "chat"  # one line, for both history replay and live delivery
     NEWS = "news"
     NEWS_ITEM = "news_item"
     WATCHLIST = "watchlist"
