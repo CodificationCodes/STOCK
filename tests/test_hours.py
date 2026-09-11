@@ -127,23 +127,36 @@ class TestEngineFollowsTheSchedule:
         assert engine.prices() == before
 
     @pytest.mark.asyncio
-    async def test_reopening_does_not_instantly_roll_a_day(self, game):
+    async def test_closing_leaves_prices_and_the_day_alone(self, game):
+        """The overnight gap must not land on a frozen screen at the close."""
         engine = game.engine
-        engine.hours = _window_excluding_now()
-        await engine.tick()
-        assert engine.status is MarketStatus.CLOSED
-
-        # Simulate the overnight gap, then reopen.
-        engine.day_started_at = datetime(2020, 1, 1, tzinfo=UTC)
-        engine.hours = _window_including_now()
         day_before = engine.day_index
+        engine.hours = _window_excluding_now()
 
         result = await engine.tick()
 
-        assert engine.status is MarketStatus.OPEN
-        assert result.status_changed is MarketStatus.OPEN
+        assert result.status_changed is MarketStatus.CLOSED
         assert result.day_rolled is None
         assert engine.day_index == day_before
+
+    @pytest.mark.asyncio
+    async def test_reopening_closes_out_the_interrupted_day_exactly_once(self, game):
+        """Friday's last hour ends at Monday's open -- with the gap, the
+        snapshot and a fresh 'today' -- and then does not roll again."""
+        engine = game.engine
+        engine.hours = _window_excluding_now()
+        await engine.tick()
+        day_at_close = engine.day_index
+        engine.day_started_at = datetime(2020, 1, 1, tzinfo=UTC)  # the weekend
+        engine.hours = _window_including_now()
+
+        reopened = await engine.tick()
+        following = await engine.tick()
+
+        assert reopened.status_changed is MarketStatus.OPEN
+        assert reopened.day_rolled == day_at_close + 1
+        assert engine.day_index == day_at_close + 1
+        assert following.day_rolled is None
 
     @pytest.mark.asyncio
     async def test_a_halt_outranks_the_schedule(self, game):

@@ -420,6 +420,14 @@ class MarketEngine:
 
         result = TickResult(day_index=self.day_index, tick=self.tick_count)
         result.status_changed = self._sync_schedule()
+        if result.status_changed is MarketStatus.OPEN:
+            # A new session: close out the day that was in progress when the
+            # market shut, so its bar, the equity snapshot and "today" all end
+            # at the boundary instead of bleeding into this one. Doing it here
+            # rather than at the close puts the overnight gap where a real one
+            # lands -- at the open, not on a frozen screen at 15:00.
+            await self._roll_day()
+            result.day_rolled = self.day_index
         if self.status is not MarketStatus.OPEN:
             result.status = self.status
             return result
